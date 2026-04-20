@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+      "floversemod:florics_box"
+  ],
+  "result": {
+    "count": 9,
+    "id": "floversemod:florics"
+  }
+}
