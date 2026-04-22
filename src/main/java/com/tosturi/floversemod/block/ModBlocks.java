@@ -16,15 +16,17 @@ import static com.tosturi.floversemod.item.ModItems.ITEMS;
 public class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(FloVerseMod.MODID);
 
-    public static final DeferredBlock<Block> FLORICS_BOX = BLOCKS.register(
+    public static final DeferredBlock<Block> FLORICS_BOX = BLOCKS.registerBlock(
             "florics_box",
-            registryName -> new Block(BlockBehaviour.Properties.of()
-                    .setId(ResourceKey.create(Registries.BLOCK, registryName))
+            properties -> new Block(properties
                     .destroyTime(1.5f)
                     .explosionResistance(3.0f)
                     .sound(SoundType.WOOD)
             )
     );
 
-    public static final DeferredItem<BlockItem> FLORICS_BOX_ITEM = ITEMS.registerSimpleBlockItem("florics_box", ModBlocks.FLORICS_BOX);
+    public static final DeferredItem<BlockItem> FLORICS_BOX_ITEM = ITEMS.registerSimpleBlockItem(
+            "florics_box",
+            ModBlocks.FLORICS_BOX
+    );
 }
