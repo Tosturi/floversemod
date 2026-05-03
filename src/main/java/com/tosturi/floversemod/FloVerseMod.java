@@ -1,9 +1,15 @@
 package com.tosturi.floversemod;
 
 import com.tosturi.floversemod.block.ModBlocks;
+import com.tosturi.floversemod.datagen.ModLanguageProvider;
+import com.tosturi.floversemod.datagen.ModLanguageProviderRuRu;
+import com.tosturi.floversemod.datagen.ModLootTableProvider;
+import com.tosturi.floversemod.datagen.ModModelProvider;
+import com.tosturi.floversemod.datagen.ModRecipeProvider;
 import com.tosturi.floversemod.entity.ModEntities;
 import com.tosturi.floversemod.entity.custom.TigerGirlEntity;
 import com.tosturi.floversemod.item.ModItems;
+import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 
 import net.neoforged.bus.api.IEventBus;
@@ -26,6 +32,8 @@ public class FloVerseMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerAttributes);
         modEventBus.addListener(this::addCreative);
+        modEventBus.addListener(this::onGatherDataServer);
+        modEventBus.addListener(this::onGatherDataClient);
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
@@ -46,5 +54,16 @@ public class FloVerseMod {
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
 
+    }
+
+    private void onGatherDataServer(GatherDataEvent.Server event) {
+        event.createProvider(ModRecipeProvider::new);
+        event.createProvider(ModLootTableProvider::new);
+    }
+
+    private void onGatherDataClient(GatherDataEvent.Client event) {
+        event.createProvider(ModModelProvider::new);
+        event.createProvider(output -> new ModLanguageProvider(output, "en_us"));
+        event.createProvider(ModLanguageProviderRuRu::new);
     }
 }
