@@ -28,8 +28,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @EventBusSubscriber(modid = FloVerseMod.MODID)
@@ -41,6 +43,11 @@ public class TigerGirlVillageHandler {
     private static int tickCounter = 0;
 
     private static final TigerGirlRespawnManager respawnManager = new TigerGirlRespawnManager();
+
+    // Bells whose TigerGirl was not found on the last liveness check.
+    // A respawn is only scheduled after two consecutive failed checks,
+    // preventing false positives when TigerGirl's chunk hasn't loaded yet.
+    private static final Set<BlockPos> pendingLivenessConfirmation = new HashSet<>();
 
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
@@ -102,14 +109,13 @@ public class TigerGirlVillageHandler {
             // (horizontally). That guarantees both the bell's chunk AND every chunk within
             // TigerGirl's home range are fully loaded, eliminating false positives caused by
             // TigerGirl's chunk loading a tick after the bell's chunk.
-            double radiusSq = Config.VILLAGE_RADIUS.get() * Config.VILLAGE_RADIUS.get();
+            double radius = Config.VILLAGE_RADIUS.get();
+            double radiusSq = radius * radius;
             for (Map.Entry<BlockPos, TigerGirlVillageData.VillageEntry> mapEntry
                     : data.getAllEntries().entrySet()) {
 
                 BlockPos bell = mapEntry.getKey();
                 TigerGirlVillageData.VillageEntry entry = mapEntry.getValue();
-
-                if (entry.tigerGirlUUID() == null) continue;
 
                 boolean playerNearBell = level.players().stream().anyMatch(p -> {
                     double dx = p.getX() - bell.getX();
@@ -118,22 +124,52 @@ public class TigerGirlVillageHandler {
                 });
                 if (!playerNearBell) continue;
 
-                Entity found = level.getEntity(entry.tigerGirlUUID());
-                if (found instanceof TigerGirlEntity tg && tg.isAlive()) continue;
+                // Village alive check — only reliable when chunks are loaded (player nearby).
+                boolean hasVillagers = !level.getEntitiesOfClass(
+                        Villager.class, new AABB(bell).inflate(radius)).isEmpty();
+                if (!hasVillagers && !entry.villageDead()) {
+                    LOGGER.info("[TigerGirl] No villagers near bell {}, marking village dead", bell);
+                    data.setVillageDead(bell, true);
+                    entry = data.getEntry(bell); // refresh after mutation
+                } else if (hasVillagers && entry.villageDead()) {
+                    LOGGER.info("[TigerGirl] Villagers returned to bell {}, reviving village", bell);
+                    data.setVillageDead(bell, false);
+                    entry = data.getEntry(bell);
+                }
 
-                // Before scheduling a respawn, check whether a TigerGirl is already present
-                // but with a mismatched UUID (can happen if data was lost and later repaired
-                // only partially). Repair the mapping instead of spawning a duplicate.
-                List<TigerGirlEntity> orphans = level.getEntitiesOfClass(
-                        TigerGirlEntity.class, new AABB(bell).inflate(Config.VILLAGE_RADIUS.get()));
-                if (!orphans.isEmpty()) {
-                    data.setTigerGirl(bell, orphans.get(0).getUUID());
+                if (entry.tigerGirlUUID() == null) continue;
+
+                Entity found = level.getEntity(entry.tigerGirlUUID());
+                if (found instanceof TigerGirlEntity tg && tg.isAlive()) {
+                    pendingLivenessConfirmation.remove(bell);
                     continue;
                 }
 
-                LOGGER.info("[TigerGirl] Liveness check: TigerGirl {} confirmed missing near bell {}, scheduling respawn",
+                // Check for an orphan (UUID mismatch) before concluding she's gone.
+                List<TigerGirlEntity> orphans = level.getEntitiesOfClass(
+                        TigerGirlEntity.class, new AABB(bell).inflate(radius));
+                if (!orphans.isEmpty()) {
+                    data.setTigerGirl(bell, orphans.get(0).getUUID());
+                    pendingLivenessConfirmation.remove(bell);
+                    continue;
+                }
+
+                // Two-strike rule: only schedule a respawn after two consecutive failed checks.
+                // This prevents false positives when TigerGirl's chunk hasn't loaded yet
+                // (e.g. right after a player re-logs or she chased a monster far from the bell).
+                if (!pendingLivenessConfirmation.contains(bell)) {
+                    LOGGER.info("[TigerGirl] Liveness check: TigerGirl {} not found near bell {}, will confirm next check",
+                            entry.tigerGirlUUID(), bell);
+                    pendingLivenessConfirmation.add(bell);
+                    continue;
+                }
+
+                pendingLivenessConfirmation.remove(bell);
+                LOGGER.info("[TigerGirl] Liveness check: TigerGirl {} confirmed missing (two checks) near bell {}, scheduling respawn",
                         entry.tigerGirlUUID(), bell);
-                data.clearTigerGirl(bell);
+                // Do NOT clearTigerGirl here — only onLivingDeath owns that.
+                // spawnTigerGirl will detect the stored UUID and abort if she's
+                // just in an unloaded chunk, preventing false-positive duplicates.
                 respawnManager.schedule(bell, level.getGameTime(), data);
             }
 
@@ -188,18 +224,67 @@ public class TigerGirlVillageHandler {
     // Spawn helpers
 
     private static void spawnTigerGirl(ServerLevel level, BlockPos bell, TigerGirlVillageData data) {
-        // Duplicate guard: if a TigerGirl already exists near this bell (e.g. data was lost
-        // but the entity survived), repair the data and abort rather than spawning a second one.
+        double radius = Config.VILLAGE_RADIUS.get();
+        double radiusSq = radius * radius;
+
+        // Dead-village guard: never spawn if all villagers have left or been killed.
+        TigerGirlVillageData.VillageEntry bellEntry = data.getEntry(bell);
+        if (bellEntry != null && bellEntry.villageDead()) {
+            LOGGER.info("[TigerGirl] Village at bell {} is dead (no villagers), skipping spawn", bell);
+            return;
+        }
+
+        // Precheck: if data already records a UUID for this bell, verify before spawning.
+        // onLivingDeath is the only path that clears the UUID. If it's still set, either:
+        //   - she's alive (somewhere) → cancel
+        //   - getEntity returns null → she's frozen in an unloaded chunk (alive) → reschedule
+        //   - she's present but dead (shouldn't happen; onLivingDeath always fires) → clear and proceed
+        if (bellEntry != null && bellEntry.tigerGirlUUID() != null) {
+            Entity stored = level.getEntity(bellEntry.tigerGirlUUID());
+            if (stored instanceof TigerGirlEntity tg && tg.isAlive()) {
+                return;
+            }
+            if (stored == null) {
+                data.schedulePendingRespawn(bell, level.getGameTime() + CHECK_INTERVAL);
+                return;
+            }
+            data.clearTigerGirl(bell);
+        }
+
+        // Guard 1: TigerGirl entity physically near this bell (covers normal case + data loss recovery).
         List<TigerGirlEntity> nearby = level.getEntitiesOfClass(
-                TigerGirlEntity.class,
-                new AABB(bell).inflate(Config.VILLAGE_RADIUS.get())
-        );
+                TigerGirlEntity.class, new AABB(bell).inflate(radius));
         if (!nearby.isEmpty()) {
             TigerGirlEntity existing = nearby.get(0);
             LOGGER.warn("[TigerGirl] TigerGirl {} already exists near bell {}, repairing data and aborting duplicate spawn",
                     existing.getUUID(), bell);
             data.setTigerGirl(bell, existing.getUUID());
             return;
+        }
+
+        // Guard 2: another registered bell within VILLAGE_RADIUS already tracks a live TigerGirl.
+        // This catches the case where the village has a second bell and the TigerGirl is
+        // physically near that other bell (not this one), so the entity search above missed her.
+        for (Map.Entry<BlockPos, TigerGirlVillageData.VillageEntry> mapEntry : data.getAllEntries().entrySet()) {
+            BlockPos otherBell = mapEntry.getKey();
+            UUID otherUUID = mapEntry.getValue().tigerGirlUUID();
+            if (otherUUID == null) continue;
+            double dx = bell.getX() - otherBell.getX();
+            double dz = bell.getZ() - otherBell.getZ();
+            if (dx * dx + dz * dz > radiusSq) continue;
+            Entity found = level.getEntity(otherUUID);
+            if (found instanceof TigerGirlEntity tg && tg.isAlive()) {
+                LOGGER.warn("[TigerGirl] Bell {} is within village radius of bell {} which already has TigerGirl {}, aborting duplicate spawn",
+                        bell, otherBell, otherUUID);
+                data.setTigerGirl(bell, otherUUID);
+                return;
+            }
+            if (found == null) {
+                // UUID set but entity not in any loaded chunk — she's alive but frozen.
+                // Abort to avoid spawning a duplicate that would coexist once she loads.
+                data.schedulePendingRespawn(bell, level.getGameTime() + CHECK_INTERVAL);
+                return;
+            }
         }
 
         BlockPos spawnPos = findSpawnPos(level, bell);

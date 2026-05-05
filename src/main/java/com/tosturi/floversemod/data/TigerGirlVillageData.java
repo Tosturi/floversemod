@@ -129,6 +129,15 @@ public class TigerGirlVillageData extends SavedData {
         setDirty();
     }
 
+    public void setVillageDead(BlockPos center, boolean dead) {
+        BlockPos key = normalizePos(center);
+        VillageEntry old = villageEntries.get(key);
+        if (old != null) {
+            villageEntries.put(key, new VillageEntry(old.tigerGirlUUID(), dead));
+            setDirty();
+        }
+    }
+
     public void clearTigerGirl(BlockPos center) {
         BlockPos key = normalizePos(center);
         VillageEntry old = villageEntries.get(key);
