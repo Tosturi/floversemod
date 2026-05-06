@@ -18,8 +18,11 @@ src/main/
 │   ├── item/ModItems.java                — item registry
 │   ├── entity/
 │   │   ├── ModEntities.java              — entity type registry
-│   │   └── custom/TigerGirlEntity.java  — NPC logic and AI
-│   │   └── client/PlaceholderRenderer.java — temporary renderer (vanilla villager skin)
+│   │   └── custom/TigerGirlEntity.java   — NPC logic and AI
+│   │   └── client/TigerGirlRenderer.java  — MobRenderer; animation state extraction
+│   │   └── client/TigerGirlModel.java     — EntityModel; keyframe animations + head tracking
+│   │   └── client/TigerGirlRenderState.java — render state; 4 AnimationState fields
+│   │   └── client/TigerGirlModelAnimations.java — baked KeyframeAnimation definitions
 │   ├── data/TigerGirlVillageData.java    — persistent world state (SavedData)
 │   ├── event/
 │   │   ├── TigerGirlVillageHandler.java  — spawn / death / respawn event logic
@@ -107,21 +110,23 @@ TigerGirl uses Minecraft's **Brain** system, which is activity-based rather than
 - Executes `WALK_TARGET` navigation (`MoveToTargetSink` — required for any movement to work).
 
 **IDLE activity** (default):
-- `StartAttacking` (priority 1): detects the nearest hostile entity (`NEAREST_HOSTILE` memory), sets it as `ATTACK_TARGET`. Skipped while trading.
-- `RandomStroll` (priority 2): wanders slowly at 0.5 speed within the 20-block home radius around the bell. `LandRandomPos` respects `setHomeTo` automatically via `GoalUtils.mobRestricted()`.
+- `StartAttacking` (priority 1): finds the nearest `Monster` entity whose current `getTarget()` is an `AbstractVillager` (e.g. zombies chasing villagers — ignores neutral/player-targeting hostiles). Gate condition: skipped while trading AND skipped if TigerGirl is already outside her home radius (prevents starting new fights while returning home).
+- `RandomStroll` (priority 2): wanders slowly at 0.5 speed within the 20-block home radius around the bell.
 - `SetEntityLookTargetSometimes` (priority 3): occasionally looks at nearby players.
 
 **FIGHT activity** (activates when `ATTACK_TARGET` memory is present):
 - `StopAttackingIfTargetInvalid`: clears the target if it dies or becomes unreachable.
-- `SetWalkTargetFromAttackTargetIfTargetOutOfReach` at 0.65 speed: chases the target.
+- `SetWalkTargetFromAttackTargetIfTargetOutOfReach` at 0.65 speed: chases the target freely past the home boundary.
 - `MeleeAttack` with 20-tick cooldown: strikes when in range.
 - On exit: erases `ATTACK_TARGET` and `WALK_TARGET` for clean state.
 
 **Activity transitions:** `brain.setActiveActivityToFirstValid(FIGHT, IDLE)` is called every tick in `customServerAiStep` after the brain ticks.
 
-**Combat leash:** if TigerGirl drifts more than `homeRadius + 16` blocks (36 blocks) from the bell while in combat, `ATTACK_TARGET` and `WALK_TARGET` are cleared and navigation is stopped. This ensures she stays close enough to the bell that the liveness check always finds her in a loaded chunk.
+**Home return:** after combat ends (no `ATTACK_TARGET` in brain), `customServerAiStep` checks if TigerGirl is outside her home radius. If so, a `WALK_TARGET` toward the bell is set at 0.5 speed. She won't engage a new threat until she's back inside the radius.
 
-**Stop when trading:** every tick while `isTrading()` is true, `WALK_TARGET` is erased and navigation is stopped. This prevents `RandomStroll` from setting a new target on the very next tick.
+**Stop when trading:** every tick while `isTrading()` is true, `WALK_TARGET` is erased and navigation is stopped.
+
+**Attack animation:** `doHurtTarget` calls `level.broadcastEntityEvent(this, (byte) 60)` on a successful hit (immediate packet). `handleEntityEvent` on the client starts `attackAnimationState`. `SynchedEntityData` is NOT used for this — it batches updates and introduces a visible delay.
 
 **Persistence:** calls `setPersistenceRequired()` in the constructor. `AbstractVillager` does not override `checkDespawn()` in this MC version, so without this flag she would despawn like a regular mob when the player is >128 blocks away.
 
@@ -161,11 +166,16 @@ Both trades have unlimited uses and grant no experience. The trade set uses Mine
 2. **Skip if the bell's chunk is not loaded** — heightmap queries on unloaded chunks return garbage, causing spawn to fail. Defer by rescheduling for the next cycle.
 3. For each due entry, call `spawnTigerGirl` (which includes the duplicate guard and position search).
 
+**Village alive check** (same 600-tick loop, runs before liveness):
+- When a player is near the bell, count `Villager` entities within `VILLAGE_RADIUS`. If zero, set `villageDead=true` — `spawnTigerGirl` will refuse to spawn until this clears.
+- When villagers return, `villageDead` is set back to `false`. If TigerGirl's UUID is also null at that point (her respawn timer fired while the village was dead and was consumed without rescheduling), a new respawn is scheduled immediately.
+
 **Liveness check** (same 600-tick loop):
 - For each registered village that has a TigerGirl UUID recorded, verify the entity still exists and is alive.
-- **Requires a player within `VILLAGE_RADIUS` blocks (XZ) of the bell** before checking. This guarantees that both the bell's chunk and TigerGirl's chunk (within 36 blocks of the bell, due to the combat leash) are fully loaded — eliminating false positives caused by TigerGirl's chunk loading a tick after the bell's chunk.
-- **Orphan repair:** before scheduling a respawn, check for any `TigerGirlEntity` within `VILLAGE_RADIUS` of the bell. If one exists but with a different UUID (data was lost/repaired partially), update the mapping and skip the respawn.
-- If the entity is genuinely missing (player nearby, entity not found, no orphan), treat it the same as a death and schedule a respawn.
+- **Requires a player within `VILLAGE_RADIUS` blocks (XZ) of the bell** before checking — guarantees all relevant chunks are loaded.
+- **Two-strike rule:** an entity is only considered missing after two consecutive failed checks (1200 ticks total). The `pendingLivenessConfirmation` static set tracks bells on their first strike. It is cleared in `onServerStarting` to prevent a stale strike from a previous session from immediately triggering a respawn.
+- **Orphan repair:** before scheduling a respawn, check for any `TigerGirlEntity` within `VILLAGE_RADIUS` of the bell. If one exists with a mismatched UUID, update the mapping and skip the respawn.
+- The liveness check **never calls `clearTigerGirl`** — only `onLivingDeath` owns that. Clearing the UUID while TigerGirl is alive in an unloaded chunk would bypass all spawn guards and create a duplicate on the next respawn fire.
 
 ---
 
@@ -175,7 +185,7 @@ All village data is stored per-world using Minecraft's `SavedData` mechanism (wr
 
 **Stored per village (keyed by bell position):**
 - TigerGirl's UUID (null if not currently spawned)
-- `villageDead` flag (reserved for future use — e.g., if all villagers are gone)
+- `villageDead` flag — set when no `Villager` entities found within `VILLAGE_RADIUS`; blocks all spawn attempts until villagers return
 
 **Stored globally:**
 - Pending respawn timers: bell position → game tick at which to fire
@@ -196,8 +206,25 @@ Two values exposed in `floversemod-common.toml`:
 
 ---
 
+---
+
+## Rendering
+
+TigerGirl uses a custom Blockbench model. The pipeline is:
+
+`TigerGirlRenderer` (extends `MobRenderer`) → `TigerGirlRenderState` (extends `LivingEntityRenderState`) → `TigerGirlModel` (extends `EntityModel<TigerGirlRenderState>`)
+
+**Animations:** four `KeyframeAnimation` instances (IDLE, WALK, RUN, ATTACK) baked from `TigerGirlModelAnimations` in the model constructor. Applied in `setupAnim` via `KeyframeAnimation.apply(animationState, ageInTicks)`. The corresponding `AnimationState` fields live on `TigerGirlEntity` and are driven client-side in `tick()`.
+
+**Head tracking:** after applying keyframe animations, `setupAnim` overwrites the head bone's rotation:
+```java
+this.head.yRot = renderState.yRot * ((float) Math.PI / 180.0f);
+this.head.xRot = renderState.xRot * ((float) Math.PI / 180.0f);
+```
+`LivingEntityRenderState.yRot` is already body-relative (same as vanilla `VillagerModel`). The look control inherited from `AbstractVillager` drives the actual look targets; the model just reads the result.
+
+---
+
 ## Known Limitations
 
-- **TigerGirl model is a placeholder** — she currently renders using the vanilla villager texture. A custom Blockbench model has not been created yet.
 - **Village discovery delay** — discovery via the tick scan has up to a 30-second delay on first visit. The `EntityJoinLevelEvent` fast path reduces this in most cases, but is not guaranteed when POIs aren't ready at chunk load time.
-- **`villageDead` flag unused** — persisted in `VillageEntry` but not yet acted on. Reserved for future dead-village detection (all villagers gone).

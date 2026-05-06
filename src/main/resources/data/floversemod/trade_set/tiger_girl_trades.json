@@ -1,11 +1,12 @@
 {
   "trades": [
     "floversemod:gold_to_florics",
-    "floversemod:diamond_to_florics"
+    "floversemod:diamond_to_florics",
+    "floversemod:florics_to_emerald"
   ],
   "amount": {
     "type": "minecraft:constant",
-    "value": 2
+    "value": 3
   },
   "allow_duplicates": false
 }

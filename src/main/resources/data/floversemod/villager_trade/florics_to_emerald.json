@@ -1,0 +1,13 @@
+{
+  "wants": {
+    "id": "floversemod:florics",
+    "count": 2
+  },
+  "gives": {
+    "id": "minecraft:emerald",
+    "count": 1
+  },
+  "max_uses": 999,
+  "xp": 0,
+  "reputation_discount": 0.05
+}
