@@ -15,6 +15,7 @@ public class ModLanguageProvider extends LanguageProvider {
     @Override
     protected void addTranslations() {
         addItem(ModItems.FLORICS, "Florics");
+        addItem(ModItems.TIGER_GIRL_SUMMONING_EGG, "Tiger Girl Summoning Egg");
         addBlock(ModBlocks.FLORICS_BOX, "Florics Box");
         add("entity.floversemod.tiger_girl", "Tiger Girl");
         add("floverse_tab.title", "FloVerse");

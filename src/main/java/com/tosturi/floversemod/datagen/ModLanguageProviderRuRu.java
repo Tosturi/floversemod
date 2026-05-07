@@ -15,6 +15,7 @@ public class ModLanguageProviderRuRu extends LanguageProvider {
     @Override
     protected void addTranslations() {
         addItem(ModItems.FLORICS, "Флорики");
+        addItem(ModItems.TIGER_GIRL_SUMMONING_EGG, "Яйцо Вызова Девочки Тигрицы");
         addBlock(ModBlocks.FLORICS_BOX, "Ящик Флориков");
         add("entity.floversemod.tiger_girl", "Девочка Тигрица");
         add("floverse_tab.title", "Flo-Verse Мод");

@@ -20,6 +20,7 @@ public class FloVerseCreativeModeTabs {
                     .displayItems((parameters, output) -> {
                        output.accept(ModItems.FLORICS.get());
                        output.accept(ModBlocks.FLORICS_BOX_ITEM.get());
+                       output.accept(ModItems.TIGER_GIRL_SUMMONING_EGG.get());
                     })
                     .build()
     );

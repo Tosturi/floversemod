@@ -19,5 +19,6 @@ public class ModModelProvider extends ModelProvider {
     protected void registerModels(BlockModelGenerators blockModels, ItemModelGenerators itemModels) {
         blockModels.createTrivialCube(ModBlocks.FLORICS_BOX.get());
         itemModels.generateFlatItem(ModItems.FLORICS.get(), ModelTemplates.FLAT_ITEM);
+        itemModels.generateFlatItem(ModItems.TIGER_GIRL_SUMMONING_EGG.get(), ModelTemplates.FLAT_ITEM);
     }
 }
