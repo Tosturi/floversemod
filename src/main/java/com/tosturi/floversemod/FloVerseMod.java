@@ -9,6 +9,7 @@ import com.tosturi.floversemod.datagen.ModRecipeProvider;
 import com.tosturi.floversemod.entity.ModEntities;
 import com.tosturi.floversemod.entity.custom.TigerGirlEntity;
 import com.tosturi.floversemod.item.ModItems;
+import com.tosturi.floversemod.sound.ModSounds;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 
@@ -39,6 +40,7 @@ public class FloVerseMod {
         ModItems.ITEMS.register(modEventBus);
         FloVerseCreativeModeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
+        ModSounds.SOUND_EVENTS.register(modEventBus);
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);

@@ -14,6 +14,13 @@ out/
 
 .run/
 
+### AI helper
+mc-source-indexer-workspace/
+.claude/
+CLAUDE.md
+logic_map.md
+.cursor/
+
 ### Eclipse ###
 .apt_generated
 .classpath

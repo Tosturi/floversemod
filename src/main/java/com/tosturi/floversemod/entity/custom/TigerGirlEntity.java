@@ -44,7 +44,11 @@ import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.sounds.SoundEvent;
+import com.tosturi.floversemod.sound.ModSounds;
 import net.minecraft.world.item.trading.TradeSet;
 import net.minecraft.world.level.Level;
 import net.minecraft.util.profiling.Profiler;
@@ -260,6 +264,26 @@ public class TigerGirlEntity extends AbstractVillager {
     protected void updateTrades(ServerLevel level) {
         this.addOffersFromTradeSet(level, this.getOffers(), TIGER_GIRL_TRADES);
     }
+
+    @Override
+    public void notifyTrade(MerchantOffer offer) {
+        super.notifyTrade(offer);
+        this.makeSound(ModSounds.TIGER_GIRL_TRADE.get());
+    }
+
+    @Override
+    public void notifyTradeUpdated(ItemStack itemStack) {}
+
+    @Override
+    public void playCelebrateSound() {}
+
+    @Override
+    @Nullable
+    protected SoundEvent getHurtSound(DamageSource source) { return null; }
+
+    @Override
+    @Nullable
+    protected SoundEvent getDeathSound() { return null; }
 
     @Override
     protected void rewardTradeXp(@NonNull MerchantOffer offer) {}

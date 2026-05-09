@@ -51,6 +51,9 @@ A custom currency. Has no use beyond being traded for. Appears in the FloVerse c
 ### Florics Box (block)
 A storage-compression block. Crafted from a 3×3 grid of Florics (9 → 1 box). Breaks back into 9 Florics when mined (loot table). Primarily exists as a convenient way to store large quantities of Florics.
 
+### Tiger Girl Summoning Egg (item)
+A spawn egg that manually spawns TigerGirl at the player's cursor position. Appears in the FloVerse creative tab. Uses the vanilla `SpawnEggItem` with entity type bound via `DataComponents.ENTITY_DATA` + `TypedEntityData` (1.21 component-based API — no entity type constructor arg).
+
 ### TigerGirl (NPC entity)
 A villager-like NPC that inhabits villages. She does not despawn naturally, does not breed, and cannot age. She is the only source of Florics in the world.
 
