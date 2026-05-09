@@ -33,14 +33,14 @@ displayName="${mod_name}" #mandatory
 #logoFile="examplemod.png" #optional
 
 # A text field displayed in the mod UI
-#credits="" #optional
+credits="Made for Floneriel" #optional
 
 # The authors of the mod, displayed in the mod UI (optional)
-#authors=""
+authors="Tosturi"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Example mod description.
+A meme mod made for fun — adds TigerGirl, a custom NPC that spawns in every village, sells Florics (a custom currency), and respawns after death. Created by Tosturi for the Twitch streamer Floneriel.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.

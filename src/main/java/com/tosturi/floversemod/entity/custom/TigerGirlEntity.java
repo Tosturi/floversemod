@@ -275,6 +275,9 @@ public class TigerGirlEntity extends AbstractVillager {
     }
 
     @Override
+    public boolean showProgressBar() { return false; }
+
+    @Override
     protected void updateTrades(ServerLevel level) {
         this.addOffersFromTradeSet(level, this.getOffers(), TIGER_GIRL_TRADES);
     }

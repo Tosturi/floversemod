@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A NeoForge mod created for the streamer **Floneriel**. It introduces a single custom NPC — the **TigerGirl** — that automatically appears in every Minecraft village, sells a custom currency item (**Florics**), and respawns after being killed. The mod is intentionally minimal: one NPC, one item, one block, one economy loop.
+A meme mod made for fun by **Tosturi** for his friend and Twitch streamer **Floneriel**. It introduces a single custom NPC — the **TigerGirl** — that automatically appears in every Minecraft village, sells a custom currency item (**Florics**), and respawns after being killed. The mod is intentionally minimal: one NPC, one item, one block, one economy loop.
 
 ---
 
@@ -158,6 +158,8 @@ TigerGirl uses Minecraft's **Brain** system, which is activity-based rather than
 | 1 Diamond | 4 Florics |
 
 Both trades have unlimited uses and grant no experience. The trade set uses Minecraft's data-driven `TradeSet` / `VillagerTrade` registry, so trades can be modified without recompiling.
+
+The trading screen shows no level label or XP progress bar (`showProgressBar()` returns `false`).
 
 ---
 
