@@ -8,5 +8,10 @@
     "sounds": [
       "floversemod:tiger_girl/roar-of-the-tiger"
     ]
+  },
+  "tiger_girl.idle": {
+    "sounds": [
+      "floversemod:tiger_girl/idle-purrs"
+    ]
   }
 }

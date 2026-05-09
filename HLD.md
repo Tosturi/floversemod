@@ -16,6 +16,7 @@ src/main/
 │   ├── Config.java                       — configurable constants
 │   ├── block/ModBlocks.java              — block registry
 │   ├── item/ModItems.java                — item registry
+│   ├── sound/ModSounds.java              — sound event registry (trade purr, combat roar)
 │   ├── entity/
 │   │   ├── ModEntities.java              — entity type registry
 │   │   └── custom/TigerGirlEntity.java   — NPC logic and AI
@@ -34,6 +35,11 @@ src/main/
 │       ├── ModLanguageProvider.java      — English translations
 │       └── ModLanguageProviderRuRu.java  — Russian translations
 └── resources/
+    ├── assets/floversemod/
+    │   ├── sounds.json
+    │   └── sounds/tiger_girl/
+    │       ├── trade-purr.ogg
+    │       └── roar-of-the-tiger.ogg
     └── data/floversemod/
         ├── trade_set/tiger_girl_trades.json
         └── villager_trade/
@@ -225,6 +231,19 @@ this.head.yRot = renderState.yRot * ((float) Math.PI / 180.0f);
 this.head.xRot = renderState.xRot * ((float) Math.PI / 180.0f);
 ```
 `LivingEntityRenderState.yRot` is already body-relative (same as vanilla `VillagerModel`). The look control inherited from `AbstractVillager` drives the actual look targets; the model just reads the result.
+
+---
+
+### 8 — Sound
+
+All vanilla villager sounds (hurt, death, celebrate, trade yes/no) are silenced. TigerGirl has two custom sounds at volume 0.8:
+
+| Sound ID | File | Trigger |
+|---|---|---|
+| `floversemod:tiger_girl.trade` | `trade-purr.ogg` | `notifyTrade` — once per completed trade |
+| `floversemod:tiger_girl.roar` | `roar-of-the-tiger.ogg` | `customServerAiStep` — on `DATA_IS_ATTACKING` false→true transition (combat start) |
+
+The roar plays exactly once per combat engagement. When `ATTACK_TARGET` is cleared and re-set (new fight), the transition fires again.
 
 ---
 

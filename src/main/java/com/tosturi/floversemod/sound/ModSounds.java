@@ -20,4 +20,9 @@ public class ModSounds {
             SOUND_EVENTS.register("tiger_girl.roar",
                     () -> SoundEvent.createVariableRangeEvent(
                             Identifier.fromNamespaceAndPath(FloVerseMod.MODID, "tiger_girl.roar")));
+
+    public static final DeferredHolder<SoundEvent, SoundEvent> TIGER_GIRL_IDLE =
+            SOUND_EVENTS.register("tiger_girl.idle",
+                    () -> SoundEvent.createVariableRangeEvent(
+                            Identifier.fromNamespaceAndPath(FloVerseMod.MODID, "tiger_girl.idle")));
 }
