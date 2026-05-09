@@ -286,6 +286,9 @@ public class TigerGirlEntity extends AbstractVillager {
     protected SoundEvent getDeathSound() { return null; }
 
     @Override
+    protected float getSoundVolume() { return 0.5F; }
+
+    @Override
     protected void rewardTradeXp(@NonNull MerchantOffer offer) {}
 
     @Override
