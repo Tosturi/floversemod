@@ -70,6 +70,7 @@ public class TigerGirlEntity extends AbstractVillager {
     private static final byte EVENT_ATTACK_ANIM = 60;
 
     private int idleSoundCooldown = 200;
+    private int tradeSoundCooldown = 0;
 
     public final AnimationState idleAnimationState = new AnimationState();
     public final AnimationState walkAnimationState = new AnimationState();
@@ -244,6 +245,8 @@ public class TigerGirlEntity extends AbstractVillager {
         }
         this.entityData.set(DATA_IS_ATTACKING, isAttacking);
 
+        if (tradeSoundCooldown > 0) tradeSoundCooldown--;
+
         if (--idleSoundCooldown <= 0) {
             idleSoundCooldown = 200 + this.random.nextInt(200);
             if (!this.isTrading() && !isAttacking) {
@@ -285,7 +288,10 @@ public class TigerGirlEntity extends AbstractVillager {
     @Override
     public void notifyTrade(MerchantOffer offer) {
         super.notifyTrade(offer);
-        this.makeSound(ModSounds.TIGER_GIRL_TRADE.get());
+        if (tradeSoundCooldown <= 0) {
+            this.makeSound(ModSounds.TIGER_GIRL_TRADE.get());
+            tradeSoundCooldown = 20;
+        }
     }
 
     @Override
