@@ -3,5 +3,10 @@
     "sounds": [
       "floversemod:tiger_girl/trade-purr"
     ]
+  },
+  "tiger_girl.roar": {
+    "sounds": [
+      "floversemod:tiger_girl/roar-of-the-tiger"
+    ]
   }
 }

@@ -236,7 +236,11 @@ public class TigerGirlEntity extends AbstractVillager {
                 brain.setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(home, 0.5f, (int) radius));
             }
         }
-        this.entityData.set(DATA_IS_ATTACKING, brain.hasMemoryValue(MemoryModuleType.ATTACK_TARGET));
+        boolean isAttacking = brain.hasMemoryValue(MemoryModuleType.ATTACK_TARGET);
+        if (isAttacking && !this.entityData.get(DATA_IS_ATTACKING)) {
+            this.makeSound(ModSounds.TIGER_GIRL_ROAR.get());
+        }
+        this.entityData.set(DATA_IS_ATTACKING, isAttacking);
         profiler.pop();
         super.customServerAiStep(level);
     }
